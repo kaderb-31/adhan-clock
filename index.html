@@ -88,7 +88,7 @@
     display:none;
     place-items:center;
     z-index:30;
-    background:url("https://raw.githubusercontent.com/kaderb-31/adhan-clock/main/fond1.jpg") center/cover no-repeat;
+    background:url("./img/fond1.jpg") center/cover no-repeat;
   }
   #adhanOverlay .panel{
     background:rgba(0,0,0,0.55);
@@ -171,7 +171,7 @@
   </div>
 </div>
 
-<!-- Audio local (RAW GitHub) -->
+<!-- Audio local -->
 https://raw.githubusercontent.com/kaderb-31/adhan-clock/main/adhan.mp3</audio>
 
 <script>
@@ -198,12 +198,12 @@ function buildUrl(){
 document.getElementById("urlHint").textContent = buildUrl();
 
 /* =============================
-   FONDS DYNAMIQUES (RAW GitHub)
+   FONDS DYNAMIQUES (LOCAUX)
 ============================= */
 const backgrounds = [
-  "https://raw.githubusercontent.com/kaderb-31/adhan-clock/main/fond1.jpg",
-  "https://raw.githubusercontent.com/kaderb-31/adhan-clock/main/fond2.jpg",
-  "https://raw.githubusercontent.com/kaderb-31/adhan-clock/main/fond3.jpg"
+  "./img/fond1.jpg",
+  "./img/fond2.jpg",
+  "./img/fond3.jpg"
 ];
 
 let bgIndex = 0;
