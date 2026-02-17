@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Horloge Adhan – Mode Murale</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<style>
+  :root{
+    --accent:#00eaff;
+    --fg:#ffffff;
+    --bg:#000000;
+    --muted:#cccccc;
+    --border:#2b2b2b;
+  }
+
+  html,body{
+    margin:0; padding:0;
+    height:100%; width:100%;
+    background:#000;
+    font-family:system-ui,Segoe UI,Arial;
+    overflow:hidden;
+  }
+
+  /* ===== BACKGROUND CYCLIQUE ===== */
+  #bgCycle{
+    position:fixed;
+    inset:0; z-index:-1;
+    background-size:cover;
+    background-position:center;
+    transition:opacity 2s ease-in-out;
+  }
+  #bgCycle.fade{opacity:0;}
+
+  /* ===== PLEIN ÉCRAN ===== */
+  #fullscreenBtn{
+    position:fixed; left:16px; top:16px; z-index:40;
+    font-size:18px;
+    padding:10px 14px;
+    backdrop-filter:blur(4px);
+    background:rgba(0,0,0,0.4);
+    border-radius:10px;
+    border:1px solid #444;
+    color:white;
+    cursor:pointer;
+  }
+
+  #unlock{
+    position:fixed; right:16px; top:16px; z-index:40;
+  }
+
+  /* ===== HEADER ===== */
+  header{text-align:center; padding-top:20px; color:#fff;}
+  h1{margin:0 0 10px; font-size:36px;}
+
+  #time{
+    font-size:11vw;
+    font-weight:700;
+    margin:0;
+    color:#fff;
+  }
+
+  #nextPrayer{
+    font-size:6vw;
+    margin-top:10px;
+    color:var(--accent);
+  }
+
+  /* ===== TABLEAU ===== */
+  #prayerTable{
+    margin:40px auto 0;
+    width:90%;
+    font-size:5vw;
+    color:white;
+    border-collapse:collapse;
+  }
+  #prayerTable td{
+    padding:18px 10px;
+    border-bottom:1px solid var(--border);
+  }
+  #prayerTable td:first-child{text-align:left;}
+  #prayerTable td:last-child{text-align:right; font-variant-numeric:tabular-nums;}
+
+  /* ===== OVERLAY ADHAN ===== */
+  #adhanOverlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    place-items:center;
+    z-index:30;
+    background:url("./img/fond1.jpg") center/cover no-repeat;
+  }
+  #adhanOverlay .panel{
+    background:rgba(0,0,0,0.55);
+    padding:40px 50px;
+    border-radius:20px;
+    text-align:center;
+  }
+  #adhanOverlay h3{
+    font-size:10vw; margin:0 0 15px;
+  }
+  #adhanOverlay p{
+    font-size:6vw; margin:0;
+  }
+
+  /* ===== PARAMÈTRES ===== */
+  #settings{
+    position:fixed; bottom:0; left:0; right:0;
+    background:rgba(0,0,0,0.8);
+    border-top:1px solid var(--border);
+    padding:15px 20px 20px;
+    color:#fff;
+  }
+  #settings h2{margin:0 0 10px; font-size:22px;}
+  .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  input[type="checkbox"]{transform:scale(1.6);}
+  #urlHint{font-size:14px; color:#ccc; word-break:break-all; margin-top:8px;}
+
+  .btn{
+    padding:10px 15px;
+    background:#111;
+    border:1px solid var(--border);
+    border-radius:8px;
+    color:#fff;
+    cursor:pointer;
+  }
+  .btn.primary{background:#00332d; border-color:#004d40;}
+</style>
+</head>
+
+<body>
+
+<!-- Background dynamique -->
+<div id="bgCycle"></div>
+
+<!-- Bouton plein écran -->
+<button id="fullscreenBtn">⛶ Plein écran</button>
+
+<header>
+  <h1>Horloge des Prières</h1>
+  <div id="time">--:--:--</div>
+  <div id="nextPrayer">Chargement…</div>
+</header>
+
+<table id="prayerTable"></table>
+
+<!-- Bouton activer audio -->
+<button id="unlock" class="btn primary">🔊 Activer l’Adhan</button>
+
+<!-- Paramètres -->
+<div id="settings">
+  <h2>Paramètres</h2>
+
+  <div class="row">
+    <label><input type="checkbox" id="playFajrChk"> Jouer l’Adhan pour Fajr</label>
+  </div>
+
+  <div class="row" style="margin-top:10px;">
+    <button id="copyUrl" class="btn">🔗 Copier l’URL</button>
+    <span id="copyOk" style="color:#00c853; display:none;">Copié !</span>
+  </div>
+
+  <div id="urlHint"></div>
+</div>
+
+<!-- Overlay Adhan -->
+<div id="adhanOverlay">
+  <div class="panel">
+    <h3 id="overlayTitle"></h3>
+    <p id="overlaySubtitle"></p>
+  </div>
+</div>
+
+<!-- Audio local -->
+https://raw.githubusercontent.com/<TON_USER>/<TON_REPO>/main/audio/adhan.mp3</audio>
+
+<script>
+/* =============================
+   PARAMÈTRES URL
+============================= */
+const url = new URL(window.location.href);
+const address = url.searchParams.get("address") || "Toulouse,France";
+const method = url.searchParams.get("method") || "2";
+const tune   = url.searchParams.get("tune")   || "0,0,0,0,0,5,0,0,0";
+const playFajrParam = (url.searchParams.get("playFajr") ?? "1") === "1";
+
+const playFajrChk = document.getElementById("playFajrChk");
+playFajrChk.checked = playFajrParam;
+
+function buildUrl(){
+  const u=new URL(window.location.href);
+  u.searchParams.set("address",address);
+  u.searchParams.set("method",method);
+  u.searchParams.set("tune",tune);
+  u.searchParams.set("playFajr", playFajrChk.checked?"1":"0");
+  return u.toString();
+}
+document.getElementById("urlHint").textContent = buildUrl();
+
+/* =============================
+   FONDS DYNAMIQUES (LOCAUX)
+============================= */
+const backgrounds = [
+  "./img/fond1.jpg",
+  "./img/fond2.jpg",
+  "./img/fond3.jpg"
+];
+
+let bgIndex = 0;
+const bgEl = document.getElementById("bgCycle");
+bgEl.style.backgroundImage = `url('${backgrounds[0]}')`;
+
+function rotateBackground(){
+  bgEl.classList.add("fade");
+  setTimeout(()=>{
+    bgIndex = (bgIndex+1) % backgrounds.length;
+    bgEl.style.backgroundImage = `url('${backgrounds[bgIndex]}')`;
+    bgEl.classList.remove("fade");
+  },2000);
+}
+setInterval(rotateBackground,20000);
+
+/* =============================
+   HORLOGE
+============================= */
+const timeEl = document.getElementById("time");
+function updateClock(){
+  const now=new Date();
+  timeEl.textContent = now.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+setInterval(updateClock,1000);
+updateClock();
+
+/* =============================
+   API ALADHAN
+============================= */
+const tableEl = document.getElementById("prayerTable");
+const nextEl = document.getElementById("nextPrayer");
+let prayerTimes={};
+let nextTimerId=null;
+
+async function loadTimes(){
+  const apiUrl=`https://api.aladhan.com/v1/timingsByAddress?address=${encodeURIComponent(address)}&method=${method}&tune=${tune}`;
+  const r=await fetch(apiUrl);
+  const j=await r.json();
+  prayerTimes=j.data.timings;
+  updateTable();
+  scheduleNext();
+}
+
+function updateTable(){
+  const list=["Fajr","Sunrise","Dhuhr","Asr","Maghrib","Isha"];
+  tableEl.innerHTML="";
+  for(const p of list){
+    tableEl.insertAdjacentHTML("beforeend",
+      `<tr><td>${p}</td><td>${prayerTimes[p]}</td></tr>`);
+  }
+}
+
+/* =============================
+   PROCHAINE PRIÈRE
+============================= */
+function scheduleNext(){
+  if (nextTimerId) clearTimeout(nextTimerId);
+  const now=new Date();
+  const list=["Fajr","Dhuhr","Asr","Maghrib","Isha"];
+  let nextName=null, nextTime=null, diff=Infinity;
+
+  for(const name of list){
+    const t=prayerTimes[name];
+    if(!/^\d{2}:\d{2}$/.test(t)) continue;
+    const [h,m]=t.split(":").map(Number);
+    const target=new Date();
+    target.setHours(h,m,0,0);
+    if(target>now && target-now<diff){
+      diff=target-now;
+      nextName=name; nextTime=t;
+    }
+  }
+
+  if(!nextName){
+    nextEl.textContent="Mise à jour après minuit…";
+    return;
+  }
+
+  nextEl.textContent=`Prochaine prière : ${nextName} – ${nextTime}`;
+  nextTimerId=setTimeout(()=> triggerAdhan(nextName,nextTime), diff);
+}
+
+/* =============================
+   ADHAN
+============================= */
+const overlay=document.getElementById("adhanOverlay");
+const overlayTitle=document.getElementById("overlayTitle");
+const overlaySubtitle=document.getElementById("overlaySubtitle");
+const audio=document.getElementById("adhan");
+let audioUnlocked=false;
+
+document.getElementById("unlock").addEventListener("click", ()=>{
+  audio.play().then(()=>{
+    audio.pause(); audio.currentTime=0;
+    audioUnlocked=true;
+    const b=document.getElementById("unlock");
+    b.textContent="🔊 Adhan activé";
+    b.disabled=true;
+  }).catch(()=>alert("Touchez encore pour activer le son."));
+});
+
+async function triggerAdhan(name,time){
+  overlayTitle.textContent=name;
+  overlaySubtitle.textContent=time;
+  overlay.style.display="grid";
+
+  const shouldPlay=(name!=="Fajr" || playFajrChk.checked);
+  if(shouldPlay && audioUnlocked){
+    try{ await audio.play(); }catch(e){}
+  }
+
+  setTimeout(()=> overlay.style.display="none", 120000);
+  scheduleNext();
+}
+
+/* =============================
+   PLEIN ÉCRAN
+============================= */
+const fsBtn=document.getElementById("fullscreenBtn");
+function updateFs(){
+  if(document.fullscreenElement){
+    fsBtn.textContent="❎ Quitter plein écran";
+  } else {
+    fsBtn.textContent="⛶ Plein écran";
+  }
+}
+fsBtn.addEventListener("click", async()=>{
+  if(!document.fullscreenElement){
+    await document.documentElement.requestFullscreen();
+  } else {
+    await document.exitFullscreen();
+  }
+  updateFs();
+});
+document.addEventListener("fullscreenchange", updateFs);
+
+/* =============================
+   COPIE URL
+============================= */
+document.getElementById("copyUrl").addEventListener("click", async()=>{
+  await navigator.clipboard.writeText(buildUrl());
+  document.getElementById("copyOk").style.display="inline";
+  setTimeout(()=> document.getElementById("copyOk").style.display="none",1500);
+});
+
+playFajrChk.addEventListener("change",()=>{
+  history.replaceState(null,"",buildUrl());
+  document.getElementById("urlHint").textContent=buildUrl();
+});
+
+/* =============================
+   START
+============================= */
+loadTimes();
+</script>
+
+</body>
+</html>
