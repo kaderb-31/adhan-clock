@@ -361,8 +361,39 @@ playFajrChk.addEventListener("change",()=>{
    START
 ============================= */
 loadTimes();
+/* =============================
+   WAKE LOCK (garder l'écran allumé si supporté)
+============================= */
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    console.log("Wake Lock activé !");
+    wakeLock.addEventListener("release", () => {
+      console.log("Wake Lock relâché !");
+    });
+  } catch (err) {
+    console.error("Wake Lock impossible :", err);
+  }
+}
+
+// Essaye de réactiver si l’onglet perd/gagne le focus
+document.addEventListener("visibilitychange", () => {
+  if (wakeLock !== null && document.visibilityState === "visible") {
+    requestWakeLock();
+  }
+});
+
+// Activation manuelle par interaction utilisateur
+document.addEventListener("click", () => {
+  if (!wakeLock) requestWakeLock();
+});
+
+  
 </script>
 
 </body>
 </html>
+
 
